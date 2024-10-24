@@ -56,6 +56,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "priviliged"
+version = "0.1.0"
+dependencies = [
+ "polkavm-derive",
+ "simplealloc",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"

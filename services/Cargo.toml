@@ -13,6 +13,7 @@ lto = false
 resolver = "2"
 members = [
     "fib",
+    "priviliged",
     "admin",
     "staking",
     "accounts",
