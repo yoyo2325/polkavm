@@ -95,13 +95,19 @@ extern "C" fn is_authorized() -> u32 {
 
 #[polkavm_derive::polkavm_export]
 extern "C" fn refine() -> u32 {
+    unsafe {
+        core::arch::asm!(
+            "li a3, 0xFEFF0004",
+            "li a4, 0x20", 
+        );
+    }
     0
 }
 
 #[polkavm_derive::polkavm_export]
 extern "C" fn accumulate() -> u32 {
-    let omega_7: u32 = 0xFEFE0000;
-    let omega_8: u32 = 181;
+    let mut omega_7: u32 = 0xFEFF0000;
+    let omega_8: u32 = 206;
     let omega_9: u32 = 0x2000;
     let omega_10: u32 = 0x1000;
     let omega_11: u32 = 0x3000;
@@ -110,21 +116,22 @@ extern "C" fn accumulate() -> u32 {
     let result = unsafe { new(omega_7, omega_8, omega_9, omega_10, omega_11, omega_12) };
     
     unsafe {
-        let ptr1 = 0xFEFE0000 as *mut u32;
+        let ptr1 = 0xFEFF0000 as *mut u32;
         *ptr1 = 0;
 
-        let ptr2 = 0xFEFE0004 as *mut u32;
+        let ptr2 = 0xFEFF0004 as *mut u32;
         *ptr2 = result;
     }
     
-    let omega_7: u32 = 0xFEFE0000;
+    let mut omega_7: u32 = 0xFEFF0000;
     let omega_8: u32 = 4;
-    let omega_9: u32 = 0xFEFE0004;
+    let omega_9: u32 = 0xFEFF0004;
     let omega_10: u32 = 4;
 
     let result = unsafe { write(omega_7, omega_8, omega_9, omega_10) };
 
-    0
+    omega_7 = result;
+    result
 }
 
 #[polkavm_derive::polkavm_export]

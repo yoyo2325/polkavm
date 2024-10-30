@@ -102,6 +102,16 @@ extern "C" fn refine() -> u32 {
     unsafe {
         export(buffer.as_mut_ptr(), buffer.len() as u32);
     }
+    let buffer_addr = buffer.as_ptr() as u32;
+    let buffer_len = buffer.len() as u32;
+    unsafe {
+        core::arch::asm!(
+            "mv a3, {0}",
+            "mv a4, {1}",
+            in(reg) buffer_addr,
+            in(reg) buffer_len,
+        );
+    }
     0
 }
 
