@@ -27,6 +27,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "keccak256"
+version = "0.1.0"
+dependencies = [
+ "polkavm-derive",
+ "simplealloc",
+]
+
+[[package]]
 name = "polkavm-common"
 version = "0.12.0"
 
