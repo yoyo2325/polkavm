@@ -17,5 +17,9 @@ members = [
     "admin",
     "staking",
     "accounts",
+    "tribonacci",
+    "megatron",
+    "test_export",
+    "keccak256"
  #   "tokens",
 ]

@@ -285,10 +285,12 @@ fn main_jam_service(input_path: PathBuf, output_path: Option<PathBuf>, dump_path
     let blob = polkavm_linker::ProgramBlob::from_parts(parts.clone())
         .map_err(|err| format!("Failed to create ProgramBlob: {}", err))?;
 
-    let o_size = e_l(blob.ro_data_size(), 3);
-    let w_size = e_l(blob.rw_data_size(), 3);
+    let o_size = e_l(blob.ro_data().len().try_into().unwrap(), 3);
+    let w_size = e_l(blob.rw_data().len().try_into().unwrap(), 3);
     let z = e_l(blob.stack_size(), 2);
     let s = e_l(blob.jump_table_entry_size() as u32, 3);
+    let o_byte = blob.ro_data();
+    let w_byte = blob.rw_data();
     let c_size = e_l(parts.code_and_jump_table.len() as u32, 4);
     let c = parts.code_and_jump_table.clone();
 
@@ -296,6 +298,8 @@ fn main_jam_service(input_path: PathBuf, output_path: Option<PathBuf>, dump_path
     println!("w_size: {:?}", w_size);
     println!("z: {:?}", z);
     println!("s: {:?}", s);
+    println!("o_byte: {:?}", o_byte);
+    println!("w_byte: {:?}", w_byte);
     println!("c_size: {:?}", c_size);
     println!("c (code_and_jump_table): {:?}", c);
 
@@ -304,6 +308,8 @@ fn main_jam_service(input_path: PathBuf, output_path: Option<PathBuf>, dump_path
     new_blob.extend_from_slice(&w_size);
     new_blob.extend_from_slice(&z);
     new_blob.extend_from_slice(&s);
+    new_blob.extend_from_slice(&o_byte);
+    new_blob.extend_from_slice(&w_byte);
     new_blob.extend_from_slice(&c_size);
     new_blob.extend_from_slice(&c);
 

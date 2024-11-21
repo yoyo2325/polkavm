@@ -24,8 +24,12 @@ extern "C" {
     pub fn lookup(service: u32, hash_ptr: *const u8, out: *mut u8, out_len: u32) -> u32;
     #[polkavm_import(index = 2)]
     pub fn read(service: u32, key_ptr: *const u8, key_len: u32, out: *mut u8, out_len: u32) -> u32;
+    // #[polkavm_import(index = 3)]
+    // pub fn write(key_ptr: *const u8, key_len: u32, value: *const u8, value_len: u32) -> u32;
+
     #[polkavm_import(index = 3)]
-    pub fn write(key_ptr: *const u8, key_len: u32, value: *const u8, value_len: u32) -> u32;
+    pub fn write(ko: u32, kz: u32, bo: u32, bz: u32) -> u32;
+
     #[polkavm_import(index = 4)]
     pub fn info(service: u32, out: *mut u8) -> u32;
     #[polkavm_import(index = 5)]
@@ -85,18 +89,18 @@ extern "C" fn refine() -> u32 {
     let result = unsafe { import(0, buffer.as_mut_ptr(), buffer.len() as u32) };
 
     if result == 0 {
-        let n = u32::from_le_bytes(buffer[0..4].try_into().unwrap());
-        let fib_n = u32::from_le_bytes(buffer[4..8].try_into().unwrap());
-        let fib_n_minus_1 = u32::from_le_bytes(buffer[8..12].try_into().unwrap());
+        let n = u16::from_le_bytes(buffer[0..2].try_into().unwrap());
+        let fib_n = u16::from_le_bytes(buffer[2..4].try_into().unwrap());
+        let fib_n_minus_1 = u16::from_le_bytes(buffer[4..6].try_into().unwrap());
     
         let new_fib_n = fib_n + fib_n_minus_1;
     
-        buffer[0..4].copy_from_slice(&(n + 1).to_le_bytes());
-        buffer[4..8].copy_from_slice(&new_fib_n.to_le_bytes());
-        buffer[8..12].copy_from_slice(&fib_n.to_le_bytes());
+        buffer[0..2].copy_from_slice(&(n + 1).to_le_bytes());
+        buffer[2..4].copy_from_slice(&new_fib_n.to_le_bytes());
+        buffer[4..6].copy_from_slice(&fib_n.to_le_bytes());
     
     } else {
-        buffer.copy_from_slice(&[1u8, 0u8, 0u8, 0u8, 1u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8]);
+        buffer.copy_from_slice(&[1u8, 0u8, 1u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8]);
     }
 
     unsafe {
@@ -117,13 +121,12 @@ extern "C" fn refine() -> u32 {
 
 #[polkavm_derive::polkavm_export]
 extern "C" fn accumulate() -> u32 {
-    let buffer = [0u8; 12];
     let key = [0u8; 1];
-
+    let omega_9: u32 = 0xFEFF0000;
+    let omega_10: u32 = 0xC;
     unsafe {
-        write(key.as_ptr(), 1, buffer.as_ptr(), buffer.len() as u32);
+        write(key.as_ptr() as u32, key.len() as u32, omega_9, omega_10 as u32);
     }
-
     0
 }
 
