@@ -22,4 +22,4 @@ members = [
     "test_export",
     "keccak256"
  #   "tokens",
-]
+, "sha256"]

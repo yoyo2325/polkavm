@@ -12,3 +12,4 @@ crate-type = ["staticlib", "rlib"]
 [dependencies]
 polkavm-derive = { path = "../../crates/polkavm-derive" }
 simplealloc = { path = "../../crates/simplealloc" }
+tiny-keccak = { version = "2.0.2", features = ["sha3"] }

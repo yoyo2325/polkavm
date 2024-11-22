@@ -81,210 +81,28 @@ extern "C" fn is_authorized() -> u32 {
 
 #[polkavm_derive::polkavm_export]
 extern "C" fn refine() -> u32 {
+    use tiny_keccak::{Hasher, Sha3};
     // Input message
-    let input: [u8; 13] = *b"Hello, world!";
-    let output_len = 32; // For Keccak-256, the output length is 32 bytes
+    let input: &[u8] = b"Hello, world!";
+    let output_len = 32; // Keccak-256 output length is 32 bytes
 
-    // Constants definitions
-    const KECCAK_ROUND_CONSTANTS: [u64; 24] = [
-        0x0000000000000001,
-        0x0000000000008082,
-        0x800000000000808A,
-        0x8000000080008000,
-        0x000000000000808B,
-        0x0000000080000001,
-        0x8000000080008081,
-        0x8000000000008009,
-        0x000000000000008A,
-        0x0000000000000088,
-        0x0000000080008009,
-        0x000000008000000A,
-        0x000000008000808B,
-        0x800000000000008B,
-        0x8000000000008089,
-        0x8000000000008003,
-        0x8000000000008002,
-        0x8000000000000080,
-        0x000000000000800A,
-        0x800000008000000A,
-        0x8000000080008081,
-        0x8000000000008080,
-        0x0000000080000001,
-        0x8000000080008008,
-    ];
+    // Create a buffer to hold the hash output
+    let mut output = [0u8; 32];
 
-    const ROTATION_OFFSETS: [[u64; 5]; 5] = [
-        [0, 36, 3, 41, 18],
-        [1, 44, 10, 45, 2],
-        [62, 6, 43, 15, 61],
-        [28, 55, 25, 21, 56],
-        [27, 20, 39, 8, 14],
-    ];
+    // Create a Keccak-256 hasher
+    let mut hasher = Sha3::v256();
 
-    // State array initialization
-    let mut state = [[0u64; 5]; 5];
-    const RATE_IN_BYTES: usize = 1088 / 8; // The bitrate of Keccak-256 is 1088 bits, i.e., 136 bytes
+    // Feed the input data into the hasher
+    hasher.update(input);
 
-    // Padding
-    let mut padded_input = [0u8; RATE_IN_BYTES * 2]; // Max size in case we need two blocks
-    let mut padded_input_len = 0;
+    // Finalize the hash computation and store the result in `output`
+    hasher.finalize(&mut output);
 
-    // Copy the input into padded_input
-    for &byte in input.iter() {
-        padded_input[padded_input_len] = byte;
-        padded_input_len += 1;
-    }
-
-    // Append 0x01
-    padded_input[padded_input_len] = 0x01;
-    padded_input_len += 1;
-
-    // Pad zeros until (padded_input_len % RATE_IN_BYTES) == RATE_IN_BYTES - 1
-    while (padded_input_len % RATE_IN_BYTES) != (RATE_IN_BYTES - 1) {
-        padded_input[padded_input_len] = 0x00;
-        padded_input_len += 1;
-    }
-
-    // Append 0x80
-    padded_input[padded_input_len] = 0x80;
-    padded_input_len += 1;
-
-    // Now padded_input_len should be a multiple of RATE_IN_BYTES
-    assert_eq!(padded_input_len % RATE_IN_BYTES, 0);
-
-    // Absorption phase
-    let num_blocks = padded_input_len / RATE_IN_BYTES;
-    for block_index in 0..num_blocks {
-        let chunk = &padded_input[block_index * RATE_IN_BYTES..(block_index + 1) * RATE_IN_BYTES];
-        for i in 0..(RATE_IN_BYTES / 8) {
-            let mut bytes = [0u8; 8];
-            let start = i * 8;
-            let end = start + 8;
-            bytes.copy_from_slice(&chunk[start..end]);
-            let block = u64::from_le_bytes(bytes);
-            let x = i % 5;
-            let y = i / 5;
-            state[x][y] ^= block;
-        }
-
-        // Keccak-f[1600] permutation
-        for round in 0..24 {
-            // θ (Theta) step
-            let mut c = [0u64; 5];
-            for x in 0..5 {
-                c[x] = state[x][0]
-                    ^ state[x][1]
-                    ^ state[x][2]
-                    ^ state[x][3]
-                    ^ state[x][4];
-            }
-
-            let mut d = [0u64; 5];
-            for x in 0..5 {
-                d[x] = c[(x + 4) % 5] ^ c[(x + 1) % 5].rotate_left(1);
-            }
-
-            for x in 0..5 {
-                for y in 0..5 {
-                    state[x][y] ^= d[x];
-                }
-            }
-
-            // ρ (Rho) and π (Pi) steps
-            let mut b = [[0u64; 5]; 5];
-            for x in 0..5 {
-                for y in 0..5 {
-                    b[y][(2 * x + 3 * y) % 5] =
-                        state[x][y].rotate_left(ROTATION_OFFSETS[x][y] as u32);
-                }
-            }
-
-            // χ (Chi) step
-            for x in 0..5 {
-                for y in 0..5 {
-                    state[x][y] = b[x][y] ^ ((!b[(x + 1) % 5][y]) & b[(x + 2) % 5][y]);
-                }
-            }
-
-            // ι (Iota) step
-            state[0][0] ^= KECCAK_ROUND_CONSTANTS[round];
-        }
-    }
-
-    // Squeezing phase
-    let mut output = [0u8; 32]; // Fixed-size output array
-    let mut output_offset = 0;
-    while output_offset < output.len() {
-        for y in 0..5 {
-            for x in 0..5 {
-                let lane_bytes = state[x][y].to_le_bytes();
-                for &byte in lane_bytes.iter() {
-                    if output_offset < output.len() {
-                        output[output_offset] = byte;
-                        output_offset += 1;
-                    } else {
-                        break;
-                    }
-                }
-                if output_offset >= output.len() {
-                    break;
-                }
-            }
-            if output_offset >= output.len() {
-                break;
-            }
-        }
-
-        if output_offset >= output.len() {
-            break;
-        }
-
-        // Apply Keccak-f[1600] permutation again
-        for round in 0..24 {
-            // θ (Theta) step
-            let mut c = [0u64; 5];
-            for x in 0..5 {
-                c[x] = state[x][0]
-                    ^ state[x][1]
-                    ^ state[x][2]
-                    ^ state[x][3]
-                    ^ state[x][4];
-            }
-
-            let mut d = [0u64; 5];
-            for x in 0..5 {
-                d[x] = c[(x + 4) % 5] ^ c[(x + 1) % 5].rotate_left(1);
-            }
-
-            for x in 0..5 {
-                for y in 0..5 {
-                    state[x][y] ^= d[x];
-                }
-            }
-
-            // ρ (Rho) and π (Pi) steps
-            let mut b = [[0u64; 5]; 5];
-            for x in 0..5 {
-                for y in 0..5 {
-                    b[y][(2 * x + 3 * y) % 5] =
-                        state[x][y].rotate_left(ROTATION_OFFSETS[x][y] as u32);
-                }
-            }
-
-            // χ (Chi) step
-            for x in 0..5 {
-                for y in 0..5 {
-                    state[x][y] = b[x][y] ^ ((!b[(x + 1) % 5][y]) & b[(x + 2) % 5][y]);
-                }
-            }
-
-            // ι (Iota) step
-            state[0][0] ^= KECCAK_ROUND_CONSTANTS[round];
-        }
-    }
-    // Change output vec to u8 array
+    // Get pointer to output and its length
     let output_ptr = output.as_ptr();
-    let output_len = 100;
+    let output_len = output.len() as u32;
+
+    // Pass `output_ptr` and `output_len` via registers a3 and a4
     unsafe {
         core::arch::asm!(
             "mv a3, {0}",
